@@ -4,7 +4,7 @@
  * @Author: Adxiong
  * @Date: 2023-04-09 00:21:39
  * @LastEditors: Adxiong
- * @LastEditTime: 2023-04-09 17:31:57
+ * @LastEditTime: 2023-04-09 17:41:56
  */
 package gtask
 
@@ -15,8 +15,6 @@ import (
 )
 
 type task struct {
-	ch              chan struct{}
-	mu              sync.Mutex
 	ctx             context.Context
 	cancel          context.CancelFunc
 	g               sync.WaitGroup
@@ -27,8 +25,6 @@ type task struct {
 
 func NewTask(ctx context.Context, cancel context.CancelFunc, allowPartFailed bool) *task {
 	return &task{
-		ch:              make(chan struct{}, 1),
-		mu:              sync.Mutex{},
 		ctx:             ctx,
 		cancel:          cancel,
 		g:               sync.WaitGroup{},
@@ -63,17 +59,12 @@ func (t *task) Do(f func() error) {
 func (t *task) Wait() error {
 	go func() {
 		t.g.Wait()
-		// t.cancel()
-		t.ch <- struct{}{}
+		t.cancel()
 	}()
 
 	select {
 	case <-t.ctx.Done():
 		fmt.Println("receive cancel")
-		return t.err
-	case <-t.ch:
-		close(t.ch)
-		fmt.Println("成功执行完成")
 		return t.err
 	}
 }
